@@ -1,0 +1,142 @@
+//
+// Created by Tien Shen on 3/31/23.
+//
+
+#include "server.h"
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <thread>
+#include <queue>
+#include <mutex>
+#include <iostream>
+#define PORT 8080
+
+using namespace std;
+
+// Define a struct to hold connection information
+struct Connection {
+    int socket;
+    sockaddr_in address;
+};
+
+// Define a queue to hold incoming connections
+queue<Connection> connectionQueue;
+
+// Define a mutex to ensure thread-safe access to the queue
+mutex queueMutex;
+
+// Define a function to handle incoming connections
+void handleConnection(Connection connection) {
+    char buffer[1024];
+    int bytesReceived;
+    string response;
+
+    // Read data from the client
+    bytesReceived = recv(connection.socket, buffer, sizeof(buffer), 0);
+    if (bytesReceived < 0) {
+        cerr << "Error reading from socket" << endl;
+        close(connection.socket);
+        return;
+    }
+
+    // Parse the incoming request
+    string request(buffer, bytesReceived);
+    size_t requestEnd = request.find("\r\n\r\n");
+    if (requestEnd == string::npos) {
+        cerr << "Invalid request" << endl;
+        close(connection.socket);
+        return;
+    }
+    string requestHeader = request.substr(0, requestEnd);
+    string requestBody = request.substr(requestEnd + 4);
+
+    // Check if the request is a GET request
+    if (requestHeader.find("GET ") == 0) {
+        // Extract the file path from the request
+        size_t pathStart = requestHeader.find(" ") + 1;
+        size_t pathEnd = requestHeader.find(" ", pathStart);
+        if (pathStart == string::npos || pathEnd == string::npos) {
+            cerr << "Invalid request" << endl;
+            close(connection.socket);
+            return;
+        }
+        string filePath = requestHeader.substr(pathStart, pathEnd - pathStart);
+
+        // Open the requested file
+        FILE* file = fopen(filePath.c_str(), "r");
+        if (file == NULL) {
+            cerr << "Error opening file" << endl;
+            close(connection.socket);
+            return;
+        }
+
+        // Read the contents of the file
+        char fileBuffer[1024];
+        while (!feof(file)) {
+            size_t bytesRead = fread(fileBuffer, 1, sizeof(fileBuffer), file);
+            if (bytesRead > 0) {
+                response.append(fileBuffer, bytesRead);
+            }
+        }
+
+        // Close the file
+        fclose(file);
+
+        // Send a response back to the client
+        string header = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + to_string(response.length()) + "\r\n\r\n";
+        send(connection.socket, header.c_str(), header.length(), 0);
+        send(connection.socket, response.c_str(), response.length(), 0);
+    } else {
+        // Handle other types of requests
+        // ...
+    }
+
+    // Close the connection
+    close(connection.socket);
+}
+
+
+int main() {
+
+    int serverSocket, clientSocket, newSocket;
+    sockaddr_in serverAddress, clientAddress;
+    socklen_t clientAddressSize = sizeof(clientAddress);
+    socklen_t serverAddressLen = sizeof(serverAddress);
+    // Create a socket
+    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket < 0) {
+        cerr << "Error creating socket" << endl;
+        return 1;
+    }
+
+    // Bind the socket to an IP address and port
+    memset(&serverAddress, 0, sizeof(serverAddress));
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_addr.s_addr = INADDR_ANY;
+    serverAddress.sin_port = htons(PORT);
+    if (bind(serverSocket, (sockaddr *) &serverAddress, sizeof(serverAddress)) < 0) {
+        cerr << "Error binding socket" << endl;
+        return 1;
+    }
+    cout << "server starting...." << endl;
+    // Listen for incoming connections
+    if (listen(serverSocket, 5) < 0) {
+        cerr << "Error listening for connections" << endl;
+        return 1;
+    }
+    while(true){
+        listen(serverSocket, 5);
+    }
+
+
+    // Accept incoming connection
+    if ((newSocket = accept(serverSocket, (struct sockaddr*)&serverAddress, (socklen_t*)&serverAddressLen)) < 0) {
+        cerr << "accept failed" << endl;
+        return -1;
+    }
+    return 0;
+}

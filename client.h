@@ -1,0 +1,14 @@
+//
+// Created by Tien Shen on 3/31/23.
+//
+
+#ifndef ECE670_MUTLI_THREAD_SERVER_PROJECT_CLIENT_H
+#define ECE670_MUTLI_THREAD_SERVER_PROJECT_CLIENT_H
+
+
+class client {
+
+};
+
+
+#endif //ECE670_MUTLI_THREAD_SERVER_PROJECT_CLIENT_H
