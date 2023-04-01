@@ -10,6 +10,9 @@
 #include <string.h>
 #include <iostream>
 
+#define HOST "127.0.0.1"
+#define PORT 8080
+
 using namespace std;
 
 // Define a function to request a file from the server
@@ -23,6 +26,7 @@ string getFile(string host, int port, string filePath) {
     struct sockaddr_in serverAddress;
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_port = htons(port);
+    serverAddress.sin_addr.s_addr = inet_addr(HOST);
     if (inet_pton(AF_INET, host.c_str(), &serverAddress.sin_addr) <= 0) {
         cerr << "Invalid server address" << endl;
         close(socketId);
@@ -54,6 +58,6 @@ string getFile(string host, int port, string filePath) {
 }
 
 int main(){
-    string response = getFile("localhost", 8080, "/example.txt");
+    string response = getFile(HOST, 8080, "/example.txt");
     cout << response << endl;
 }

@@ -13,7 +13,13 @@
 #include <queue>
 #include <mutex>
 #include <iostream>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+
+#define HOST "127.0.0.1"
 #define PORT 8080
+
 
 using namespace std;
 
@@ -112,25 +118,24 @@ int main() {
         cerr << "Error creating socket" << endl;
         return 1;
     }
-
+    cout << "server starting...." << endl;
     // Bind the socket to an IP address and port
     memset(&serverAddress, 0, sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
+    serverAddress.sin_addr.s_addr = inet_addr(HOST);
+    //serverAddress.sin_addr.s_addr = INADDR_ANY;
     serverAddress.sin_port = htons(PORT);
     if (bind(serverSocket, (sockaddr *) &serverAddress, sizeof(serverAddress)) < 0) {
         cerr << "Error binding socket" << endl;
         return 1;
     }
-    cout << "server starting...." << endl;
+    cout << "server listening...." << endl;
     // Listen for incoming connections
     if (listen(serverSocket, 5) < 0) {
         cerr << "Error listening for connections" << endl;
         return 1;
     }
-    while(true){
-        listen(serverSocket, 5);
-    }
+    cout << "Server address: " << inet_ntoa(serverAddress.sin_addr) << ":" << ntohs(serverAddress.sin_port) << endl;
 
 
     // Accept incoming connection
