@@ -3,39 +3,42 @@
 //
 
 #include "client.h"
-
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <string.h>
 #include <iostream>
+#include <cstring>
+#include <netdb.h>
 
-#define HOST "127.0.0.1"
-#define PORT 8080
+#define HOST "elnux1.cs.umass.edu"
+#define PORT "8095"
 
 using namespace std;
 
 // Define a function to request a file from the server
-string getFile(string host, int port, string filePath) {
+string getFile(string host, string port, string filePath) {
     int socketId = socket(AF_INET, SOCK_STREAM, 0);
     if (socketId < 0) {
         cerr << "Error creating socket" << endl;
         return "";
     }
 
-    struct sockaddr_in serverAddress;
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(port);
-    serverAddress.sin_addr.s_addr = inet_addr(HOST);
-    if (inet_pton(AF_INET, host.c_str(), &serverAddress.sin_addr) <= 0) {
-        cerr << "Invalid server address" << endl;
-        close(socketId);
+    struct addrinfo hints, *res;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    // Attempt to connect to server
+    int status = getaddrinfo(HOST, PORT, &hints, &res);
+    if (status != 0) {
+        std::cerr << "Error getting address info: " << gai_strerror(status) << std::endl;
         return "";
     }
 
-    if (connect(socketId, (struct sockaddr*) &serverAddress, sizeof(serverAddress)) < 0) {
-        cerr << "Error connecting to server" << endl;
-        close(socketId);
+    if (connect(socketId, res->ai_addr, res->ai_addrlen) < 0) {
+        std::cerr << "Error connecting to server" << std::endl;
         return "";
     }
 
@@ -58,6 +61,6 @@ string getFile(string host, int port, string filePath) {
 }
 
 int main(){
-    string response = getFile(HOST, 8080, "/example.txt");
+    string response = getFile(HOST, PORT, "/example.txt");
     cout << response << endl;
 }
