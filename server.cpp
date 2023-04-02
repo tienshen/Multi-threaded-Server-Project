@@ -36,25 +36,26 @@ queue<Connection> connectionQueue;
 mutex queueMutex;
 
 // Define a function to handle incoming connections
-void handleConnection(Connection connection) {
+void handleConnection(int socket_fd) {
     char buffer[1024];
     int bytesReceived;
     string response;
-
+    // cout << "we made it to checkpoint 1" << endl;
     // Read data from the client
-    bytesReceived = recv(connection.socket, buffer, sizeof(buffer), 0);
+    bytesReceived = recv(socket_fd, buffer, sizeof(buffer), 0);
     if (bytesReceived < 0) {
         cerr << "Error reading from socket" << endl;
-        close(connection.socket);
+        close(socket_fd);
         return;
     }
 
+    // cout << "checkpoint 2" << endl;
     // Parse the incoming request
     string request(buffer, bytesReceived);
     size_t requestEnd = request.find("\r\n\r\n");
     if (requestEnd == string::npos) {
         cerr << "Invalid request" << endl;
-        close(connection.socket);
+        close(socket_fd);
         return;
     }
     string requestHeader = request.substr(0, requestEnd);
@@ -62,12 +63,13 @@ void handleConnection(Connection connection) {
 
     // Check if the request is a GET request
     if (requestHeader.find("GET ") == 0) {
+        // cout << "checkpoint 3" << endl;
         // Extract the file path from the request
         size_t pathStart = requestHeader.find(" ") + 1;
         size_t pathEnd = requestHeader.find(" ", pathStart);
         if (pathStart == string::npos || pathEnd == string::npos) {
             cerr << "Invalid request" << endl;
-            close(connection.socket);
+            close(socket_fd);
             return;
         }
         string filePath = requestHeader.substr(pathStart, pathEnd - pathStart);
@@ -75,8 +77,8 @@ void handleConnection(Connection connection) {
         // Open the requested file
         FILE* file = fopen(filePath.c_str(), "r");
         if (file == NULL) {
-            cerr << "Error opening file" << endl;
-            close(connection.socket);
+            cerr << "Error opening file at filepath: " << filePath << endl;
+            close(socket_fd);
             return;
         }
 
@@ -86,6 +88,7 @@ void handleConnection(Connection connection) {
             size_t bytesRead = fread(fileBuffer, 1, sizeof(fileBuffer), file);
             if (bytesRead > 0) {
                 response.append(fileBuffer, bytesRead);
+                // cout << fileBuffer << endl;
             }
         }
 
@@ -94,23 +97,22 @@ void handleConnection(Connection connection) {
 
         // Send a response back to the client
         string header = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + to_string(response.length()) + "\r\n\r\n";
-        send(connection.socket, header.c_str(), header.length(), 0);
-        send(connection.socket, response.c_str(), response.length(), 0);
+        send(socket_fd, header.c_str(), header.length(), 0);
+        send(socket_fd, response.c_str(), response.length(), 0);
     } else {
         // Handle other types of requests
         // ...
     }
 
     // Close the connection
-    close(connection.socket);
+    close(socket_fd);
 }
 
 
 int main() {
 
-    int serverSocket, clientSocket, newSocket;
-    sockaddr_in serverAddress, clientAddress;
-    socklen_t clientAddressSize = sizeof(clientAddress);
+    int serverSocket, newSocket;
+    sockaddr_in serverAddress;
     socklen_t serverAddressLen = sizeof(serverAddress);
     // Create a socket
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -137,11 +139,15 @@ int main() {
     }
     cout << "Server address: " << inet_ntoa(serverAddress.sin_addr) << ":" << ntohs(serverAddress.sin_port) << endl;
 
+    while(true) {
+        // Accept incoming connection
+        if ((newSocket = accept(serverSocket, (struct sockaddr *) &serverAddress, (socklen_t *) &serverAddressLen)) <
+            0) {
+            cerr << "accept failed" << endl;
+            return -1;
+        }
+        handleConnection(newSocket);
 
-    // Accept incoming connection
-    if ((newSocket = accept(serverSocket, (struct sockaddr*)&serverAddress, (socklen_t*)&serverAddressLen)) < 0) {
-        cerr << "accept failed" << endl;
-        return -1;
     }
     return 0;
 }
