@@ -58,6 +58,6 @@ string getFile(string host, int port, string filePath) {
 }
 
 int main(){
-    string response = getFile(HOST, 8080, "/example.txt");
+    string response = getFile(HOST, 8080, "example.txt");
     cout << response << endl;
 }
