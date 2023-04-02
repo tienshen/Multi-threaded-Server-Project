@@ -67,7 +67,9 @@ int main() {
         cerr << "Error listening for connections" << endl;
         return 1;
     }
-    cout << "Server address: " << inet_ntoa(serverAddress.sin_addr) << ":" << ntohs(serverAddress.sin_port) << endl;
+    char server_add[50];
+    gethostname(server_add, sizeof(server_add));
+    cout << "Server address: " << server_add << ":" << ntohs(serverAddress.sin_port) << endl;
 
     while(true) {
         // Accept incoming connection
