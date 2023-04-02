@@ -122,6 +122,11 @@ void handleConnection(int socket_fd) {
         }
         string filePath = requestHeader.substr(pathStart, pathEnd - pathStart);
 
+        // if file path is not specified, GET index.html as default.
+        if (filePath == "") {
+            filePath = "index.html";
+        }
+
         // Open the requested file
         FILE* file = fopen(filePath.c_str(), "r");
         if (file == NULL) {
