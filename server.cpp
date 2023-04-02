@@ -35,6 +35,54 @@ queue<Connection> connectionQueue;
 // Define a mutex to ensure thread-safe access to the queue
 mutex queueMutex;
 
+
+void handleConnection(int socket_fd);
+
+
+int main() {
+
+    int serverSocket, newSocket;
+    sockaddr_in serverAddress;
+    socklen_t serverAddressLen = sizeof(serverAddress);
+    // Create a socket
+    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket < 0) {
+        cerr << "Error creating socket" << endl;
+        return 1;
+    }
+    cout << "server starting...." << endl;
+    // Bind the socket to an IP address and port
+    memset(&serverAddress, 0, sizeof(serverAddress));
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_addr.s_addr = inet_addr(HOST);
+    //serverAddress.sin_addr.s_addr = INADDR_ANY;
+    serverAddress.sin_port = htons(PORT);
+    if (::bind(serverSocket, (sockaddr *) &serverAddress, sizeof(serverAddress)) < 0) {
+        cerr << "Error binding socket" << endl;
+        return 1;
+    }
+    cout << "server listening...." << endl;
+    // Listen for incoming connections
+    if (listen(serverSocket, 5) < 0) {
+        cerr << "Error listening for connections" << endl;
+        return 1;
+    }
+    cout << "Server address: " << inet_ntoa(serverAddress.sin_addr) << ":" << ntohs(serverAddress.sin_port) << endl;
+
+    while(true) {
+        // Accept incoming connection
+        if ((newSocket = accept(serverSocket, (struct sockaddr *) &serverAddress, (socklen_t *) &serverAddressLen)) <
+            0) {
+            cerr << "accept failed" << endl;
+            return -1;
+        }
+        // spawn new thread to process the connection
+        thread t(handleConnection, newSocket);
+        t.detach();
+    }
+    return 0;
+}
+
 // Define a function to handle incoming connections
 void handleConnection(int socket_fd) {
     char buffer[1024];
@@ -65,7 +113,7 @@ void handleConnection(int socket_fd) {
     if (requestHeader.find("GET ") == 0) {
         // cout << "checkpoint 3" << endl;
         // Extract the file path from the request
-        size_t pathStart = requestHeader.find(" ") + 1;
+        size_t pathStart = requestHeader.find("/") + 1;
         size_t pathEnd = requestHeader.find(" ", pathStart);
         if (pathStart == string::npos || pathEnd == string::npos) {
             cerr << "Invalid request" << endl;
@@ -78,6 +126,8 @@ void handleConnection(int socket_fd) {
         FILE* file = fopen(filePath.c_str(), "r");
         if (file == NULL) {
             cerr << "Error opening file at filepath: " << filePath << endl;
+            response = "Error: file does not exist";
+            send(socket_fd, response.c_str(), response.length(), 0);
             close(socket_fd);
             return;
         }
@@ -106,48 +156,4 @@ void handleConnection(int socket_fd) {
 
     // Close the connection
     close(socket_fd);
-}
-
-
-int main() {
-
-    int serverSocket, newSocket;
-    sockaddr_in serverAddress;
-    socklen_t serverAddressLen = sizeof(serverAddress);
-    // Create a socket
-    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverSocket < 0) {
-        cerr << "Error creating socket" << endl;
-        return 1;
-    }
-    cout << "server starting...." << endl;
-    // Bind the socket to an IP address and port
-    memset(&serverAddress, 0, sizeof(serverAddress));
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = inet_addr(HOST);
-    //serverAddress.sin_addr.s_addr = INADDR_ANY;
-    serverAddress.sin_port = htons(PORT);
-    if (bind(serverSocket, (sockaddr *) &serverAddress, sizeof(serverAddress)) < 0) {
-        cerr << "Error binding socket" << endl;
-        return 1;
-    }
-    cout << "server listening...." << endl;
-    // Listen for incoming connections
-    if (listen(serverSocket, 5) < 0) {
-        cerr << "Error listening for connections" << endl;
-        return 1;
-    }
-    cout << "Server address: " << inet_ntoa(serverAddress.sin_addr) << ":" << ntohs(serverAddress.sin_port) << endl;
-
-    while(true) {
-        // Accept incoming connection
-        if ((newSocket = accept(serverSocket, (struct sockaddr *) &serverAddress, (socklen_t *) &serverAddressLen)) <
-            0) {
-            cerr << "accept failed" << endl;
-            return -1;
-        }
-        handleConnection(newSocket);
-
-    }
-    return 0;
 }
