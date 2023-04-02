@@ -54,8 +54,8 @@ int main() {
     // Bind the socket to an IP address and port
     memset(&serverAddress, 0, sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = inet_addr(HOST);
-    //serverAddress.sin_addr.s_addr = INADDR_ANY;
+    // serverAddress.sin_addr.s_addr = inet_addr(HOST);
+    serverAddress.sin_addr.s_addr = INADDR_ANY;
     serverAddress.sin_port = htons(PORT);
     if (::bind(serverSocket, (sockaddr *) &serverAddress, sizeof(serverAddress)) < 0) {
         cerr << "Error binding socket" << endl;
