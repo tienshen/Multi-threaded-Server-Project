@@ -1,5 +1,5 @@
 build server:
-    g++ server.cpp -o server
+    g++ -std=c++11 -pthread server.cpp -o server
 run server:
     ./server
 build client in another terminal:
