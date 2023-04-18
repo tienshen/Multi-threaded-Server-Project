@@ -11,7 +11,8 @@
 #include <cstring>
 #include <netdb.h>
 
-#define HOST "elnux1.cs.umass.edu"
+//#define HOST "elnux1.cs.umass.edu"
+#define HOST "localhost"
 #define PORT "8095"
 
 using namespace std;

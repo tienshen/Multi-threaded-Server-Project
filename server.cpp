@@ -1,5 +1,6 @@
 //
-// Created by Tien Shen on 3/31/23.
+// Project: ECE670 multi-threaded HTTP server
+// Authors: Tien Li Shen, Shivani
 //
 
 #include "server.h"
@@ -15,11 +16,7 @@
 #include <iostream>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
-
-#define HOST "127.0.0.1"
-#define PORT 8080
-
+#define PORT 8095
 
 using namespace std;
 
