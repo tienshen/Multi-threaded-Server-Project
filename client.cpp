@@ -61,7 +61,8 @@ string getFile(string host, string port, string filePath) {
     return response;
 }
 
-int main(){
-    string response = getFile(HOST, PORT, "/example.txt");
+int main(int argc, char * argv[]){
+    std::string filePath = (argv[1] != NULL)? argv[1] : "";
+    string response = getFile(HOST, PORT, filePath);
     cout << response << endl;
 }
