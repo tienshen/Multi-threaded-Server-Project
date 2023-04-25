@@ -32,11 +32,13 @@ queue<Connection> connectionQueue;
 // Define a mutex to ensure thread-safe access to the queue
 mutex queueMutex;
 
+//
+
 
 void handleConnection(int socket_fd);
 
 
-int main() {
+int main(int argc, char * argv[]) {
 
     int serverSocket, newSocket;
     sockaddr_in serverAddress;
@@ -84,10 +86,10 @@ int main() {
 
 // Define a function to handle incoming connections
 void handleConnection(int socket_fd) {
+    cout << "Received a request from clients" << endl;
     char buffer[1024];
     int bytesReceived;
     string response;
-    // cout << "we made it to checkpoint 1" << endl;
     // Read data from the client
     bytesReceived = recv(socket_fd, buffer, sizeof(buffer), 0);
     if (bytesReceived < 0) {
@@ -96,7 +98,6 @@ void handleConnection(int socket_fd) {
         return;
     }
 
-    // cout << "checkpoint 2" << endl;
     // Parse the incoming request
     string request(buffer, bytesReceived);
     size_t requestEnd = request.find("\r\n\r\n");
@@ -116,24 +117,37 @@ void handleConnection(int socket_fd) {
         size_t pathEnd = requestHeader.find(" ", pathStart);
         if (pathStart == string::npos || pathEnd == string::npos) {
             cerr << "Invalid request" << endl;
+            response = "400 Bad request";
+            send(socket_fd, response.c_str(), response.length(), 0);
             close(socket_fd);
             return;
         }
         string filePath = requestHeader.substr(pathStart, pathEnd - pathStart);
 
-        // if file path is not specified, GET index.html as default.
+        // If file path is not specified, GET index.html as default.
         if (filePath == "") {
             filePath = "index.html";
         }
 
         // Open the requested file
         FILE* file = fopen(filePath.c_str(), "r");
+
+        // Check if file exist
         if (file == NULL) {
             cerr << "Error opening file at filepath: " << filePath << endl;
-            response = "Error: file does not exist";
+            response = "404 Page not found";
             send(socket_fd, response.c_str(), response.length(), 0);
             close(socket_fd);
             return;
+        }
+
+        // Check for file permissions
+        else if (errno == EACCES) {
+            cerr << "File permission denied for filepath: " << filePath << endl;
+            response = "403 Forbidden";
+            send(socket_fd, response.c_str(), response.length(), 0);
+            close(socket_fd);
+            return
         }
 
         // Read the contents of the file
@@ -152,12 +166,10 @@ void handleConnection(int socket_fd) {
         // Send a response back to the client
         string header = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + to_string(response.length()) + "\r\n\r\n";
         send(socket_fd, header.c_str(), header.length(), 0);
-        send(socket_fd, response.c_str(), response.length(), 0);
     } else {
         // Handle other types of requests
         // ...
     }
-
     // Close the connection
     close(socket_fd);
 }
