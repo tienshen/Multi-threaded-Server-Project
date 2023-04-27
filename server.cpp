@@ -166,6 +166,7 @@ void handleConnection(int socket_fd) {
         // Send a response back to the client
         string header = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + to_string(response.length()) + "\r\n\r\n";
         send(socket_fd, header.c_str(), header.length(), 0);
+        send(socket_fd, response.c_str(), response.length(), 0);
     } else {
         // Handle other types of requests
         // ...
