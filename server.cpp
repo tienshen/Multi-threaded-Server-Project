@@ -147,7 +147,7 @@ void handleConnection(int socket_fd) {
             response = "403 Forbidden";
             send(socket_fd, response.c_str(), response.length(), 0);
             close(socket_fd);
-            return
+            return;
         }
 
         // Read the contents of the file
