@@ -16,7 +16,6 @@
 #include <iostream>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#define PORT 8095
 
 using namespace std;
 
@@ -33,12 +32,30 @@ queue<Connection> connectionQueue;
 mutex queueMutex;
 
 //
-
+std::string documentRoot;
 
 void handleConnection(int socket_fd);
 
 
-int main(int argc, char * argv[]) {
+int main(int argc, char *argv[]) {
+
+    if (argc != 5) {
+        cerr << "Usage: " << argv[0] << " -document_root <document_root_directory> -port <port_number>" << endl;
+        return 1;
+    }
+
+    // Parse command line arguments
+    int port;
+    for (int i = 1; i < argc; i += 2) {
+        if (strcmp(argv[i], "-document_root") == 0) {
+            documentRoot = argv[i+1];
+        } else if (strcmp(argv[i], "-port") == 0) {
+            port = atoi(argv[i+1]);
+        } else {
+            cerr << "Invalid option: " << argv[i] << endl;
+            return 1;
+        }
+    }
 
     int serverSocket, newSocket;
     sockaddr_in serverAddress;
@@ -53,9 +70,8 @@ int main(int argc, char * argv[]) {
     // Bind the socket to an IP address and port
     memset(&serverAddress, 0, sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
-    // serverAddress.sin_addr.s_addr = inet_addr(HOST);
     serverAddress.sin_addr.s_addr = INADDR_ANY;
-    serverAddress.sin_port = htons(PORT);
+    serverAddress.sin_port = htons(port);
     if (::bind(serverSocket, (sockaddr *) &serverAddress, sizeof(serverAddress)) < 0) {
         cerr << "Error binding socket" << endl;
         return 1;
@@ -81,7 +97,9 @@ int main(int argc, char * argv[]) {
         thread t(handleConnection, newSocket);
         t.detach();
     }
+
     return 0;
+
 }
 
 // Define a function to handle incoming connections
@@ -130,11 +148,12 @@ void handleConnection(int socket_fd) {
         }
 
         // Open the requested file
-        FILE* file = fopen(filePath.c_str(), "r");
+        string fullPath = documentRoot + "/" + filePath;
+        FILE* file = fopen(fullPath.c_str(), "r");
 
         // Check if file exist
         if (file == NULL) {
-            cerr << "Error opening file at filepath: " << filePath << endl;
+            cerr << "Error opening file at filepath: " << fullPath << endl;
             response = "404 Page not found";
             send(socket_fd, response.c_str(), response.length(), 0);
             close(socket_fd);
