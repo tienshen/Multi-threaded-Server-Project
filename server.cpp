@@ -16,6 +16,10 @@
 #include <iostream>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <fstream>
+#include <sstream>
+#define PORT 8096
+
 
 using namespace std;
 
@@ -129,7 +133,6 @@ void handleConnection(int socket_fd) {
 
     // Check if the request is a GET request
     if (requestHeader.find("GET ") == 0) {
-        // cout << "checkpoint 3" << endl;
         // Extract the file path from the request
         size_t pathStart = requestHeader.find("/") + 1;
         size_t pathEnd = requestHeader.find(" ", pathStart);
@@ -142,24 +145,27 @@ void handleConnection(int socket_fd) {
         }
         string filePath = requestHeader.substr(pathStart, pathEnd - pathStart);
 
-        // If file path is not specified, GET index.html as default.
+        // If file path is not specified, serve a default index.html file
         if (filePath == "") {
             filePath = "index.html";
         }
 
-        // Open the requested file
-        string fullPath = documentRoot + "/" + filePath;
-        FILE* file = fopen(fullPath.c_str(), "r");
+        //new part
+        // Check if the requested file is an image file
+        bool isImage = false;
+        if (filePath.find(".jpg") != string::npos || filePath.find(".jpeg") != string::npos || filePath.find(".png") != string::npos) {
+            isImage = true;
+        }
 
-        // Check if file exist
-        if (file == NULL) {
-            cerr << "Error opening file at filepath: " << fullPath << endl;
+        // Open the requested file
+        std::ifstream file(filePath, std::ios::binary);
+        if (!file.is_open()) {
+            cerr << "Error opening file at filepath: " << filePath << endl;
             response = "404 Page not found";
             send(socket_fd, response.c_str(), response.length(), 0);
             close(socket_fd);
             return;
         }
-
         // Check for file permissions
         else if (errno == EACCES) {
             cerr << "File permission denied for filepath: " << filePath << endl;
@@ -169,27 +175,33 @@ void handleConnection(int socket_fd) {
             return;
         }
 
-        // Read the contents of the file
-        char fileBuffer[1024];
-        while (!feof(file)) {
-            size_t bytesRead = fread(fileBuffer, 1, sizeof(fileBuffer), file);
-            if (bytesRead > 0) {
-                response.append(fileBuffer, bytesRead);
-                // cout << fileBuffer << endl;
-            }
-        }
+        // Read the contents of the file into a stringstream
+        std::stringstream fileContent;
+        fileContent << file.rdbuf();
 
+        // Get the string from the stringstream
+        string fileContents = fileContent.str();
         // Close the file
-        fclose(file);
+        file.close();
 
-        // Send a response back to the client
-        string header = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + to_string(response.length()) + "\r\n\r\n";
-        send(socket_fd, header.c_str(), header.length(), 0);
-        send(socket_fd, response.c_str(), response.length(), 0);
-    } else {
-        // Handle other types of requests
-        // ...
+        // Send the response
+        if (isImage) {
+            response = "HTTP/1.1 200 OK\r\nContent-Type: image/jpeg\r\nContent-Length: " + to_string(fileContent.str().length()) + "\r\n\r\n";
+            send(socket_fd, response.c_str(), response.length(), 0);
+            send(socket_fd, fileContent.str().c_str(), fileContent.str().length(), 0);
+            cout << "image response"  << response << endl;
+        } else {
+            response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + to_string(fileContents.length()) + "\r\n\r\n";
+            send(socket_fd, response.c_str(), response.length(), 0);
+            send(socket_fd, fileContents.c_str(), fileContents.length(), 0);
+            cout << "html response"  << response << endl;
+            // Open the file in the default web browser
+            //string command = "open " + filePath;  // use "start" instead of "open" on Windows
+            //system(command.c_str());
+        }
     }
+
     // Close the connection
     close(socket_fd);
 }
+
